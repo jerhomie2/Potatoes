@@ -1,0 +1,190 @@
+---
+title: "Potatoes"
+format: pdf
+editor: visual
+---
+
+```{r setup}
+library(tidyverse)
+library(spmodel)
+library(vroom)
+library(viridis)
+library(FRK)
+library(fields)
+
+df <- vroom('PotatoCWSI.csv')
+obs <- df %>%
+  filter(!is.na(CWSI))
+new <- df %>%
+  filter(is.na(CWSI))
+```
+
+## EDA
+
+```{r}
+obs %>%
+  ggplot(aes(x=POINT_X,y=POINT_Y, color=CWSI)) +
+  geom_point() +
+  scale_color_viridis()
+```
+
+```{r}
+# variogram
+variogram <- esv(CWSI~., data=obs, xcoord=POINT_X, ycoord=POINT_Y)
+plot(variogram)
+```
+
+## Feature Engineering
+
+```{r}
+# Make obs loc matrix
+observed_loc_matrix <- matrix(data=cbind(obs$POINT_X,obs$POINT_Y), ncol=2)
+
+## Number of Spatial Features
+K <- 20
+
+## "Centers" of Features
+## cover.design() choose K centers spread out over spatial region
+centers <- cover.design(observed_loc_matrix, nd=K)$design
+
+## Use 1.5 rule of thumb for scale
+dist_between_centers <- rdist(centers)
+the_scale <- 1.5*max(apply(dist_between_centers,1,function(x){sort(x)[2]}))
+
+## Define spatial features
+spatial_features <- local_basis(
+manifold=plane(),
+loc=centers,
+scale=rep(the_scale, K),
+type="bisquare" #or "Gaussian" or "exp"
+)
+
+## Mutate new spatial features in data frame
+obs <- obs %>%
+  mutate(SpatialFeatures=as.matrix(eval_basis(spatial_features, observed_loc_matrix)))
+```
+
+```{r}
+# Plot
+obs %>%
+  ggplot(aes(x=POINT_X,y=POINT_Y, color=SpatialFeatures[,12])) +
+  geom_point() +
+  scale_color_viridis()
+```
+
+## Model
+
+```{r}
+obs.sp <- splm(CWSI~SLOPE+TWI+ASPECT+ECA_SHALLOW+NDVI+SpatialFeatures[,1]+SpatialFeatures[,2]+SpatialFeatures[,3]+SpatialFeatures[,4]+SpatialFeatures[,5]+SpatialFeatures[,6]+SpatialFeatures[,7]+SpatialFeatures[,8]+SpatialFeatures[,9]+SpatialFeatures[,10]+SpatialFeatures[,11]+SpatialFeatures[,12]+SpatialFeatures[,13]+SpatialFeatures[,14]+SpatialFeatures[,15]+SpatialFeatures[,16]+SpatialFeatures[,17]+SpatialFeatures[,18]+SpatialFeatures[,19]+SpatialFeatures[,20], data=obs, spcov_type="exponential",
+xcoord=POINT_X, ycoord=POINT_Y)
+summary(obs.sp)
+```
+
+## Validation
+
+### Line Assumptions
+
+```{r}
+std_and_decorr_resid <- rstandard(obs.sp)
+# Independence
+resids.sp <- data.frame(r=std_and_decorr_resid,
+                     x = obs$POINT_X,
+                     y = obs$POINT_Y)
+variogram_sp <- esv(r~1, data=resids.sp, xcoord=x, ycoord=y)
+plot(variogram_sp)
+# Normality
+ggplot() +
+  geom_histogram(mapping = aes(x=std_and_decorr_resid, y=..density..)) +
+  stat_function(fun = dnorm, color='blue')
+# Equal Variance
+ggplot() +
+  geom_point(mapping = aes(y=std_and_decorr_resid, x=fitted(obs.sp)))
+```
+
+### Cross Validation
+
+```{r}
+cv_sp <- function(fold_num){
+  ## Split into train-validation sets
+  validationSet <- obs %>%
+    filter(folds==fold_num)
+  trainSet <- obs %>%
+    filter(folds!=fold_num)
+  
+  # Ensure factors have at least two levels (drop unused levels)
+  trainSet <- droplevels(trainSet)
+  validationSet <- droplevels(validationSet)
+
+  ## Fit a model and predict
+  trainModel <- splm(CWSI~SLOPE+TWI+ASPECT+ECA_SHALLOW+NDVI+SpatialFeatures[,1]+SpatialFeatures[,2]+SpatialFeatures[,3]+SpatialFeatures[,4]+SpatialFeatures[,5]+SpatialFeatures[,6]+SpatialFeatures[,7]+SpatialFeatures[,8]+SpatialFeatures[,9]+SpatialFeatures[,10]+SpatialFeatures[,11]+SpatialFeatures[,12]+SpatialFeatures[,13]+SpatialFeatures[,14]+SpatialFeatures[,15]+SpatialFeatures[,16]+SpatialFeatures[,17]+SpatialFeatures[,18]+SpatialFeatures[,19]+SpatialFeatures[,20], data=obs, spcov_type="exponential",
+xcoord=POINT_X, ycoord=POINT_Y, local=TRUE)
+  preds <- predict(trainModel, newdata=validationSet)
+
+  ## Validate the predictions
+  rmse <- yardstick::rmse_vec(truth=validationSet$CWSI, estimate=preds)
+  
+  return(rmse)
+}
+
+K <- 20
+folds <- rep(1:K, length = nrow(obs)) %>% #Rep K folds n times
+  sample()
+## CV for spatial linear model w/ spatial features
+rmse_results_splm <- sapply(1:K, FUN=cv_sp) %>%
+  unlist()
+rmse_results <- data.frame(RMSE = rmse_results_splm)
+ggplot(rmse_results, aes(x=RMSE)) +
+  stat_density(geom="line",position="identity")
+# average rmse across folds
+mean(rmse_results_splm)
+# standard deviation (approximate errror if we just predicted the mean for everything)
+sd(obs$CWSI) # about 4 times worse than our model
+```
+
+### R-Squared
+
+```{r}
+pseudoR2(obs.sp)
+```
+
+## Save Model
+
+```{r}
+saveRDS(obs.sp, 'PotatoModel.rds')
+```
+
+## 
+
+## Predict to New Locations
+
+```{r}
+# Make obs loc matrix
+new_loc_matrix <- matrix(data=cbind(new$POINT_X,new$POINT_Y), ncol=2)
+
+## Number of Spatial Features
+K <- 20
+
+## "Centers" of Features
+## cover.design() choose K centers spread out over spatial region
+centers <- cover.design(new_loc_matrix, nd=K)$design
+
+## Use 1.5 rule of thumb for scale
+dist_between_centers <- rdist(centers)
+the_scale <- 1.5*max(apply(dist_between_centers,1,function(x){sort(x)[2]}))
+
+## Define spatial features
+spatial_features <- local_basis(
+manifold=plane(),
+loc=centers,
+scale=rep(the_scale, K),
+type="bisquare" #or "Gaussian" or "exp"
+)
+
+## Mutate new spatial features in data frame
+new <- new %>%
+  mutate(SpatialFeatures=as.matrix(eval_basis(spatial_features, new_loc_matrix)))
+```
+
+```{r}
+
+```
