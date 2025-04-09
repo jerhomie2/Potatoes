@@ -190,5 +190,15 @@ new <- new %>%
 ```
 
 ```{r}
+# Read in model
+sp_model <- readRDS('PotatoModel.rds')
 
+# Save predictions
+new$preds <- predict(sp_model, newdata = new)
+
+# Plot predictions
+new %>%
+  ggplot(aes(x=POINT_X,y=POINT_Y, color = preds)) +
+  geom_point() +
+  scale_color_viridis()
 ```
