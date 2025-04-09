@@ -75,13 +75,9 @@ obs %>%
 ## Model
 
 ```{r}
-obs.sp <- splm(CWSI~SLOPE+TWI+ASPECT+ECA_SHALLOW+NDVI+SpatialFeatures[,1]+SpatialFeatures[,2]+SpatialFeatures[,3]+SpatialFeatures[,4]+SpatialFeatures[,5]+SpatialFeatures[,6]+SpatialFeatures[,7]+SpatialFeatures[,8]+SpatialFeatures[,9]+SpatialFeatures[,10]+SpatialFeatures[,11]+SpatialFeatures[,12]+SpatialFeatures[,13]+SpatialFeatures[,14]+SpatialFeatures[,15]+SpatialFeatures[,16]+SpatialFeatures[,17]+SpatialFeatures[,18]+SpatialFeatures[,19]+SpatialFeatures[,20], data=obs, spcov_type="exponential",
-xcoord=POINT_X, ycoord=POINT_Y)
+obs.sp <- splm(CWSI ~ SLOPE+TWI+ASPECT+ECA_SHALLOW+NDVI+SpatialFeatures, data = obs,
+                 spcov_type = 'exponential', xcoord = POINT_X, ycoord = POINT_Y)
 summary(obs.sp)
-
-# obs.sp2 <- splm(CWSI ~ SLOPE+TWI+ASPECT+ECA_SHALLOW+NDVI+SpatialFeatures, data = obs,
-#                 spcov_type = 'exponential', xcoord = POINT_X, ycoord = POINT_Y)
-# summary(obs.sp2)
 ```
 
 ## Validation
@@ -151,15 +147,7 @@ sd(obs$CWSI) # about 4 times worse than our model
 pseudoR2(obs.sp)
 ```
 
-## Save Model
-
-```{r}
-saveRDS(obs.sp, 'PotatoModel.rds')
-```
-
-## 
-
-## Predict to New Locations
+## update new dataframe
 
 ```{r}
 # Make obs loc matrix
@@ -189,16 +177,31 @@ new <- new %>%
   mutate(SpatialFeatures=as.matrix(eval_basis(spatial_features, new_loc_matrix)))
 ```
 
+## Save File
+
+```{r}
+save(obs.sp, obs, new, file="Objects.RData")
+```
+
+## Predictions
+
 ```{r}
 # Read in model
 sp_model <- readRDS('PotatoModel.rds')
 
 # Save predictions
-new$preds <- predict(sp_model, newdata = new)
+new$preds <- predict(obs.sp, newdata = new)
 
 # Plot predictions
 new %>%
   ggplot(aes(x=POINT_X,y=POINT_Y, color = preds)) +
   geom_point() +
   scale_color_viridis()
+```
+
+```{r}
+x <- 1:10
+save(x, file = "test_save.Rdata")
+file.create("test.txt")
+saveRDS(x, 'test.rds')
 ```
