@@ -78,6 +78,10 @@ obs %>%
 obs.sp <- splm(CWSI~SLOPE+TWI+ASPECT+ECA_SHALLOW+NDVI+SpatialFeatures[,1]+SpatialFeatures[,2]+SpatialFeatures[,3]+SpatialFeatures[,4]+SpatialFeatures[,5]+SpatialFeatures[,6]+SpatialFeatures[,7]+SpatialFeatures[,8]+SpatialFeatures[,9]+SpatialFeatures[,10]+SpatialFeatures[,11]+SpatialFeatures[,12]+SpatialFeatures[,13]+SpatialFeatures[,14]+SpatialFeatures[,15]+SpatialFeatures[,16]+SpatialFeatures[,17]+SpatialFeatures[,18]+SpatialFeatures[,19]+SpatialFeatures[,20], data=obs, spcov_type="exponential",
 xcoord=POINT_X, ycoord=POINT_Y)
 summary(obs.sp)
+
+# obs.sp2 <- splm(CWSI ~ SLOPE+TWI+ASPECT+ECA_SHALLOW+NDVI+SpatialFeatures, data = obs,
+#                 spcov_type = 'exponential', xcoord = POINT_X, ycoord = POINT_Y)
+# summary(obs.sp2)
 ```
 
 ## Validation
