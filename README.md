@@ -2,6 +2,8 @@
 
 ## Description
 
+Our model predicts the crop water stress index based on the slope of the terrain, topographic wetness index, direction of terrain, electrical conductivity of the soil, the normalized difference vegetation index, and several spatial features based on the X and Y spatial coordinates.
+
 Our model reaches an R-squared value of about 0.434, which means about 43% of the variability in the data can be explained by our model. On average, our model has an RMSE of about 0.136.
 
 ## Dependencies
@@ -45,3 +47,5 @@ all %>%
 ```
 
 ## Output
+
+Based on the output of the model, it seems like most of the farm appears to have a crop water stress index between 2 and 0, which means most of the crops are receiving enough water. However, there is a part of the crops that do have a CWSI value of 3 and 4, meaning they need to be watered. This part appears to be around the northwest part of the farm, slightly southwest of the coordinates (209850, 626375). We recommend that area to be watered as soon as possible.
