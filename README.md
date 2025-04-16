@@ -4,7 +4,7 @@
 
 Our model predicts the crop water stress index based on the slope of the terrain, topographic wetness index, direction of terrain, electrical conductivity of the soil, the normalized difference vegetation index, and several spatial features based on the X and Y spatial coordinates.
 
-Our model reaches an R-squared value of about 0.434, which means about 43% of the variability in the data can be explained by our model. On average, our model has an RMSE of about 0.136.
+Our model reaches an R-squared value of about 0.434, which means about 43% of the variability in the data can be explained by our model. On average, our model has an RMSE of about 0.354.
 
 ## Dependencies
 
